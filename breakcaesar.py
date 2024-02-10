@@ -3,6 +3,14 @@
 import sys
 import math
 
+# Numero de indicadores
+NUM_INDICATORS = 3
+
+TOP_DISTANCE_INDEX = 0
+TOP_BIGRAM_INDEX = 1
+TOP_TRIGRAM_INDEX = 2
+
+
 # Frecuencia de letras en inglés actualizadas
 ENGLISH_LETTER_FREQ = {
     'A': 0.08167, 'B': 0.01492, 'C': 0.02782, 'D': 0.04253, 'E': 0.12702,
@@ -185,48 +193,49 @@ def countTrigrams(possible_text):
 
 # Lo de arriba es lo de los bigramas  trigramas
 #-----------------------------------------------------------------------------------------------------------------------------
-def caesar_breaker(ciphertext):
-    top_keys = {}
-    best_distance = 1
-    best_key_distance = 0
-    best_key_bigram = 0
-    best_bigram_count = 0
-    best_key_trigram = 0
-    best_trigram_count = 0
-    for k in range(1, MAX_KEY):
-        # Para poder usar la misma funcion de addKeyToAsciiValue podemos pasar la k a negativa aqui, o en un futuro si hay una clase comun, y luego dos hijas (descriptar, encriptar) un atributo que las distinga y cambie a negativa la key en la funcion addKE...
-        k = -1 *k
-        possible_text = applyCaesar(k, ciphertext)
-        print(f"CON LA CLAVE {abs(k)}")
-        print(f"TEXTO CIFRADO: {ciphertext}")
-        print(f"TEXTO DESCIFRADO: {possible_text}")
-        
-        # Lo de arriba en una funcion propia
-        distance = euclideanTextDistance(possible_text)
-        if distance < best_distance:
-            best_distance = distance
-            best_key_distance = k
-        # Lo de arriba es todo lo de la distancia euclidea
-        bigram_count = countBigrams(possible_text)
-        print(f"Cuenta bigrama: {bigram_count}")
-        if bigram_count > best_bigram_count:
-            best_bigram_count = bigram_count
-            best_key_bigram = k
-        # Lo de arriba trigrama
-        trigram_count = countTrigrams(possible_text)
-        print(f"Cuenta trigramas: {trigram_count}")
-        if trigram_count > best_trigram_count:
-            best_trigram_count = trigram_count
-            best_key_trigram = k
-        
-        print("--------------------------------------------")
-        
 
+def getPossibleText(key, ciphertext):
+    key = -1 *key
+    return applyCaesar(key, ciphertext)
+
+def evaluateThreeIndicators(possible_text):
+    distance = euclideanTextDistance(possible_text)
+    bigram_count = countBigrams(possible_text)
+    trigram_count = countTrigrams(possible_text)
+
+    return distance, bigram_count, trigram_count
+
+def isBetterDistance(new_distance, current_distance, position):
+    return new_distance < current_distance and position == TOP_DISTANCE_INDEX
+
+def isBetterBigramCount(new_bigram_count, current_bigram_count, position):
+    return new_bigram_count > current_bigram_count and position == TOP_BIGRAM_INDEX
+
+def isBetterTrigramCount(new_trigram_count, current_trigram_count, position):
+    return new_trigram_count > current_trigram_count and position == TOP_TRIGRAM_INDEX
+
+def updateTopKeys(top_keys, key, distance, bigram_count, trigram_count):
+    for i in range(NUM_INDICATORS):
+        if not top_keys[i] or \
+           isBetterDistance(distance, top_keys[i]['distance'], i) or \
+           isBetterBigramCount(bigram_count, top_keys[i]['bigram_count'], i) or \
+           isBetterTrigramCount(trigram_count, top_keys[i]['trigram_count'], i):
+            top_keys[i] = {'key': key, 'distance': distance, 'bigram_count': bigram_count, 'trigram_count': trigram_count}
+    return top_keys
+
+
+
+def caesar_breaker(ciphertext):
+    top_keys = [{}, {}, {}]
+    for key in range(1, MAX_KEY):
+        possible_text = getPossibleText(key, ciphertext)
+        distance, bigram_count, trigram_count = evaluateThreeIndicators(possible_text)
+        print("SOY LA KEY {} con distancia {}, bi {} y tri {}".format(key, distance, bigram_count, trigram_count))
+        top_keys = updateTopKeys(top_keys, key, distance, bigram_count, trigram_count)
         # ME queda guardar bien a los tres mejors, una forma una lista [] con diccionario dentro [{}, {}, {}] y que sean tres constantes globales las que tienen acceso a las tres posiciones (ejem: para la posicion 1 guardamos el mejor en distancia euclidea....)
 
-    print(f"THE BEST KEY IN DISTANCE{best_key_distance}, the best key in bgrams{best_key_bigram}, and trigram {best_key_trigram}")
     
-
+    print(top_keys)
 
 
 if __name__ == "__main__":
