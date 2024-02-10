@@ -232,6 +232,3 @@ def caesar_breaker(ciphertext):
 if __name__ == "__main__":
     ciphertext = getText()
     top = caesar_breaker(ciphertext)
-
-
-
