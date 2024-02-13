@@ -223,21 +223,41 @@ def updateTopKeys(top_keys, key, distance, bigram_count, trigram_count):
             top_keys[i] = {'key': key, 'distance': distance, 'bigram_count': bigram_count, 'trigram_count': trigram_count}
     return top_keys
 
+def saveBestKeys(top_keys):
+    for key_info in top_keys:
+        key = key_info['key']
+        if key:
+            possible_text = getPossibleText(key, ciphertext)
+            with open(f'key-{key}.txt', 'w') as f:
+                f.write(possible_text)
 
 
-def caesar_breaker(ciphertext):
-    top_keys = [{}, {}, {}]
+def getTheBestKeys(top_keys, ciphertext):
     for key in range(1, MAX_KEY):
         possible_text = getPossibleText(key, ciphertext)
         distance, bigram_count, trigram_count = evaluateThreeIndicators(possible_text)
-        print("SOY LA KEY {} con distancia {}, bi {} y tri {}".format(key, distance, bigram_count, trigram_count))
         top_keys = updateTopKeys(top_keys, key, distance, bigram_count, trigram_count)
-        # ME queda guardar bien a los tres mejors, una forma una lista [] con diccionario dentro [{}, {}, {}] y que sean tres constantes globales las que tienen acceso a las tres posiciones (ejem: para la posicion 1 guardamos el mejor en distancia euclidea....)
+    return top_keys
 
-    
-    print(top_keys)
+def printBestKeys(top_keys):
+    printed_keys = set()  # Para mantener un registro de las claves ya impresas
+    for key_info in top_keys:
+        key = key_info['key']
+        if key not in printed_keys:
+            distance = key_info['distance']
+            bigram_count = key_info['bigram_count']
+            trigram_count = key_info['trigram_count']
+            print(f"{key}: {distance:.2f}, {bigram_count}, {trigram_count}")
+            printed_keys.add(key)
+
+def caesar_breaker(ciphertext):
+    top_keys = [{}, {}, {}]
+    top_keys = getTheBestKeys(top_keys, ciphertext)
+    saveBestKeys(top_keys)
+    printBestKeys(top_keys)
+
 
 
 if __name__ == "__main__":
     ciphertext = getText()
-    top = caesar_breaker(ciphertext)
+    caesar_breaker(ciphertext)
