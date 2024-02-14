@@ -1,0 +1,5 @@
+#!/bin/bash
+
+# Run caesar.py with input from command-line arguments
+python3 caesar.py "$@"
+

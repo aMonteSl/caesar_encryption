@@ -1,0 +1,4 @@
+#!/bin/bash
+
+# Run breakcaesar.py with input from command-line arguments
+python3 breakcaesar.py "$@"

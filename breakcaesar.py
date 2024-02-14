@@ -12,7 +12,7 @@ class CaesarDesEncryption(CaesarCipher):
     # Example of the correct way to launch the program using standard input
     EXAMPLE_STD_INPUT_LAUNCH = "Example1: echo 'QEB NRFZH YOLTK CLU GRJMP LSBO QEB IXWV ALD' | ./breakcaesar\n"
     # Another example of how to launch the program using command-line arguments
-    EXAMPLE_ARGV_LAUNCH = "Example2: ./breakcaesar 23 QEB NRFZH YOLTK CLU GRJMP LSBO QEB IXWV ALD"
+    EXAMPLE_ARGV_LAUNCH = "Example2: ./breakcaesar QEB NRFZH YOLTK CLU GRJMP LSBO QEB IXWV ALD"
 
     # English letter frequencies
     ENGLISH_LETTER_FREQ = {
