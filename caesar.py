@@ -23,6 +23,7 @@ class CaesarEncryption(CaesarCipher):
         if not self.correctInput():
             err_msg = self.INPUT_ERROR + self.EXAMPLE_STD_INPUT_LAUNCH + self.EXAMPLE_ARGV_LAUNCH
             CaesarCipher.manageWrongInput(err_msg)
+            exit()
 
     def getTextToEncrypt(self):
         self.key, self.white_text = CaesarCipher.getInput()
@@ -35,9 +36,9 @@ class CaesarEncryption(CaesarCipher):
         print(self.cipher_text, end='')
 
     def doEncryption(self):
-        self.getTextToEncrypt()
-        self.encrypt()
-        self.showCipherText()
+        CaesarEncryption.getTextToEncrypt(self)
+        CaesarEncryption.encrypt(self)
+        CaesarEncryption.showCipherText(self)
 
 if __name__ == "__main__":
     cipher = CaesarEncryption()
