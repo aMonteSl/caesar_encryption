@@ -6,6 +6,7 @@
 from caesar_cipher_classes import CaesarCipher
 import math
 
+
 class CaesarDesEncryption(CaesarCipher):
     # Error message for incorrect program launch
     INPUT_ERROR = "Wrong way to launch the program.\n"
@@ -16,26 +17,45 @@ class CaesarDesEncryption(CaesarCipher):
 
     # English letter frequencies
     ENGLISH_LETTER_FREQ = {
-        'A': 0.08167, 'B': 0.01492, 'C': 0.02782, 'D': 0.04253, 'E': 0.12702,
-        'F': 0.02228, 'G': 0.02015, 'H': 0.06094, 'I': 0.06966, 'J': 0.00153,
-        'K': 0.00772, 'L': 0.04025, 'M': 0.02406, 'N': 0.06749, 'O': 0.07507,
-        'P': 0.01929, 'Q': 0.00095, 'R': 0.05987, 'S': 0.06327, 'T': 0.09056,
-        'U': 0.02758, 'V': 0.00978, 'W': 0.02360, 'X': 0.00150, 'Y': 0.01974,
+        'A': 0.08167,
+        'B': 0.01492,
+        'C': 0.02782,
+        'D': 0.04253,
+        'E': 0.12702,
+        'F': 0.02228,
+        'G': 0.02015,
+        'H': 0.06094,
+        'I': 0.06966,
+        'J': 0.00153,
+        'K': 0.00772,
+        'L': 0.04025,
+        'M': 0.02406,
+        'N': 0.06749,
+        'O': 0.07507,
+        'P': 0.01929,
+        'Q': 0.00095,
+        'R': 0.05987,
+        'S': 0.06327,
+        'T': 0.09056,
+        'U': 0.02758,
+        'V': 0.00978,
+        'W': 0.02360,
+        'X': 0.00150,
+        'Y': 0.01974,
         'Z': 0.00074
     }
 
     # Common English bigrams
     ENGLISH_BIGRAM = [
-        "TH", "HE", "IN", "EN", "NT", "RE", "ER", "AN", "TI", "ES", 
-        "ON", "AT", "SE", "ND", "OR", "AR", "AL", "TE", "CO", "DE", 
-        "TO", "RA", "ET", "ED", "IT", "SA", "EM", "RO"
+        "TH", "HE", "IN", "EN", "NT", "RE", "ER", "AN", "TI", "ES", "ON", "AT",
+        "SE", "ND", "OR", "AR", "AL", "TE", "CO", "DE", "TO", "RA", "ET", "ED",
+        "IT", "SA", "EM", "RO"
     ]
-
 
     # Common English trigrams
     ENGLISH_TRIGRAM = [
-        "THE", "AND", "THA", "ENT", "ING", "ION", "TIO", "FOR", 
-        "NDE", "HAS", "NCE", "EDT", "TIS", "OFT", "STH", "MEN"
+        "THE", "AND", "THA", "ENT", "ING", "ION", "TIO", "FOR", "NDE", "HAS",
+        "NCE", "EDT", "TIS", "OFT", "STH", "MEN"
     ]
 
     # Number of top indicators
@@ -58,7 +78,7 @@ class CaesarDesEncryption(CaesarCipher):
         """
 
         return self.encryp_text is not None
-    
+
     def controlInput(self):
         """
         Check if input is correct, otherwise display error message and exit.
@@ -67,7 +87,6 @@ class CaesarDesEncryption(CaesarCipher):
             err_msg = self.INPUT_ERROR + self.EXAMPLE_STD_INPUT_LAUNCH + self.EXAMPLE_ARGV_LAUNCH
             CaesarCipher.manageWrongInput(err_msg)
             exit()
-
 
     def getTextToDesencryp(self):
         """
@@ -84,9 +103,9 @@ class CaesarDesEncryption(CaesarCipher):
         Returns:
             str: The decrypted text.
         """
-        key = -1 *key
+        key = -1 * key
         return CaesarCipher.applyMovementKeyToString(self.encryp_text, key)
-    
+
     def frequenciesToVector(text, freq_letters):
         """
         Convert the frequency of letters into a vector.
@@ -97,9 +116,12 @@ class CaesarDesEncryption(CaesarCipher):
             list: List representing the vector of frequencies.
         """
         if len(text) == 0:
-            return [0] * len(CaesarDesEncryption.ENGLISH_LETTER_FREQ)  # Return a vector of zeros if the text is empty
-        return [freq_letters[letra] / len(text) for letra in CaesarDesEncryption.ENGLISH_LETTER_FREQ.keys()]
-
+            # Return a vector of zeros if the text is empty
+            return [0] * len(CaesarDesEncryption.ENGLISH_LETTER_FREQ)
+        return [
+            freq_letters[letra] / len(text)
+            for letra in CaesarDesEncryption.ENGLISH_LETTER_FREQ.keys()
+        ]
 
     def frequenciesLetters(text):
         """
@@ -109,13 +131,17 @@ class CaesarDesEncryption(CaesarCipher):
         Returns:
             list: List representing the frequencies of letters.
         """
-        freq_letters = {letter: 0 for letter in CaesarDesEncryption.ENGLISH_LETTER_FREQ.keys()}
+        freq_letters = {
+            letter: 0
+            for letter in CaesarDesEncryption.ENGLISH_LETTER_FREQ.keys()
+        }
 
         for letter in text:
             if letter in freq_letters:
                 freq_letters[letter] += 1
 
-        freq_letters = CaesarDesEncryption.frequenciesToVector(text, freq_letters)
+        freq_letters = CaesarDesEncryption.frequenciesToVector(
+            text, freq_letters)
         return freq_letters
 
     def distanceBetweenText(freq_possi, freq_expected):
@@ -127,8 +153,9 @@ class CaesarDesEncryption(CaesarCipher):
         Returns:
             float: The Euclidean distance between the two frequency vectors.
         """
-        return math.sqrt(sum((x - y) ** 2 for x, y in zip(freq_possi, freq_expected)))
-    
+        return math.sqrt(
+            sum((x - y)**2 for x, y in zip(freq_possi, freq_expected)))
+
     # euclideanTextDistance
     def euclideanTextDistance(possible_text):
         """
@@ -140,8 +167,9 @@ class CaesarDesEncryption(CaesarCipher):
         """
         freq_possi = CaesarDesEncryption.frequenciesLetters(possible_text)
         freq_expected = list(CaesarDesEncryption.ENGLISH_LETTER_FREQ.values())
-        return CaesarDesEncryption.distanceBetweenText(freq_possi, freq_expected)
-    
+        return CaesarDesEncryption.distanceBetweenText(freq_possi,
+                                                       freq_expected)
+
     def countBigrams(possible_text):
         """
         Count the occurrences of common English bigrams in the text.
@@ -152,11 +180,10 @@ class CaesarDesEncryption(CaesarCipher):
         """
         bigram_count = 0
         for i in range(len(possible_text) - 1):
-            bigram = possible_text[i:i+2]
+            bigram = possible_text[i:i + 2]
             if bigram in CaesarDesEncryption.ENGLISH_BIGRAM:
-                bigram_count +=1
+                bigram_count += 1
         return bigram_count
-            
 
     def countTrigrams(possible_text):
         """
@@ -168,11 +195,12 @@ class CaesarDesEncryption(CaesarCipher):
         """
         count = 0
         for i in range(len(possible_text) - 1):
-            bigram = possible_text[i:i+3]  # Get the bigram and convert it to uppercase
+            # Get the bigram and convert it to uppercase
+            bigram = possible_text[i:i + 3]
             if bigram in CaesarDesEncryption.ENGLISH_TRIGRAM:
                 count += 1
         return count
-    
+
     @staticmethod
     def evaluateThreeIndicators(possible_text):
         """
@@ -187,7 +215,7 @@ class CaesarDesEncryption(CaesarCipher):
         trigram_count = CaesarDesEncryption.countTrigrams(possible_text)
 
         return distance, bigram_count, trigram_count
-    
+
     def isBetterDistance(new_distance, current_distance, position):
         """
         Check if a new distance is better than the current one.
@@ -212,7 +240,8 @@ class CaesarDesEncryption(CaesarCipher):
         """
         return new_bigram_count > current_bigram_count and position == CaesarDesEncryption.TOP_BIGRAM_INDEX
 
-    def isBetterTrigramCount(new_trigram_count, current_trigram_count, position):
+    def isBetterTrigramCount(new_trigram_count, current_trigram_count,
+                             position):
         """
         Check if a new trigram count is better than the current one.
         Args:
@@ -237,14 +266,19 @@ class CaesarDesEncryption(CaesarCipher):
             list: Updated list of top keys.
         """
         for i in range(CaesarDesEncryption.NUM_INDICATORS):
-            if not top_keys[i] or \
-            CaesarDesEncryption.isBetterDistance(distance, top_keys[i]['distance'], i) or \
-            CaesarDesEncryption.isBetterBigramCount(bigram_count, top_keys[i]['bigram_count'], i) or \
-            CaesarDesEncryption.isBetterTrigramCount(trigram_count, top_keys[i]['trigram_count'], i):
-                top_keys[i] = {'key': key, 'distance': distance, 'bigram_count': bigram_count, 'trigram_count': trigram_count}
+            if not top_keys[i] or CaesarDesEncryption.isBetterDistance(
+                    distance, top_keys[i]['distance'],
+                    i) or CaesarDesEncryption.isBetterBigramCount(
+                        bigram_count, top_keys[i]['bigram_count'],
+                        i) or CaesarDesEncryption.isBetterTrigramCount(
+                            trigram_count, top_keys[i]['trigram_count'], i):
+                top_keys[i] = {
+                    'key': key,
+                    'distance': distance,
+                    'bigram_count': bigram_count,
+                    'trigram_count': trigram_count
+                }
         return top_keys
-        
-
 
     def getTheBestKeys(self):
         """
@@ -253,8 +287,10 @@ class CaesarDesEncryption(CaesarCipher):
         best_keys = [{}, {}, {}]
         for key in range(1, CaesarCipher.MAX_KEY):
             possible_text = CaesarDesEncryption.getPossibleText(self, key)
-            distance, bigram_count, trigram_count = CaesarDesEncryption.evaluateThreeIndicators(possible_text)
-            best_keys = CaesarDesEncryption.updateTopKeys(best_keys, key, distance, bigram_count, trigram_count)
+            distance, bigram_count, trigram_count = CaesarDesEncryption.evaluateThreeIndicators(
+                possible_text)
+            best_keys = CaesarDesEncryption.updateTopKeys(
+                best_keys, key, distance, bigram_count, trigram_count)
         self.top_keys = best_keys
 
     def saveBestKeys(self):
@@ -274,7 +310,7 @@ class CaesarDesEncryption(CaesarCipher):
         Args:
             top_keys (list): List containing the top keys and their indicators.
         """
-        printed_keys = set() # To keep track of already printed keys
+        printed_keys = set()  # To keep track of already printed keys
         for key_info in top_keys:
             key = key_info['key']
             if key not in printed_keys:

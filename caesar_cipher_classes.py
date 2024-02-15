@@ -3,6 +3,7 @@
 import sys
 import select
 
+
 class CaesarCipher:
     # Constants for ASCII values of 'A' and 'Z', and maximum key value
     A_ASCII = ord("A")
@@ -30,12 +31,12 @@ class CaesarCipher:
     def getValueAscii(letter):
         # Get the Ascii value of a char
         return ord(letter)
-    
+
     @staticmethod
     def getCharAscii(ascii_value):
         # Get char of an Ascii_value
         return chr(ascii_value)
-    
+
     @staticmethod
     def manageWrongInput(err_msg):
         # If the input is incorrect, inform the user and exit the program
@@ -53,12 +54,11 @@ class CaesarCipher:
             # Handle ValueError and IndexError
             key = None
         return key
-    
+
     @staticmethod
     def removeArgument(index):
         # Delete arguments of argv
         del sys.argv[index]
-
 
     @staticmethod
     def removeTheName():
@@ -79,12 +79,11 @@ class CaesarCipher:
         # Return the length of sys.argv
         return len(sys.argv)
 
-
     @staticmethod
     def textInArguments():
         # Check if there is white_text provided as command-line arguments.
         return CaesarCipher.LengthArguments() > CaesarCipher.MIN_ARGUMENTS
-    
+
     @staticmethod
     def getTextInArguments():
         # Get white_text input provided as command-line arguments.
@@ -94,7 +93,7 @@ class CaesarCipher:
             white_text += word
             white_text += ' '
         return white_text
-    
+
     @staticmethod
     def getTextEstandarInput():
         # Check if there's something to read from standard input
@@ -105,14 +104,14 @@ class CaesarCipher:
         else:
             # No input available, return None or raise an exception as desired
             return None
-        
+
     @staticmethod
     def getWhiteText():
         # Get the white_text input for Caesar cipher encryption.
         # This function retrieves the white_text input either from command-line arguments or standard input,
         # depending on whether white_text is provided as arguments. The white_text is
         # converted to uppercase for consistency.
-        
+
         if CaesarCipher.textInArguments():
             CaesarCipher.removeTheNameAndKey()
             text_input = CaesarCipher.getTextInArguments()
@@ -130,7 +129,7 @@ class CaesarCipher:
         key = CaesarCipher.getKey()
         text_input = CaesarCipher.getWhiteText()
         return key, text_input
-    
+
     @staticmethod
     def getEncryptedTex():
         if CaesarCipher.textInArguments():
@@ -143,13 +142,16 @@ class CaesarCipher:
             text_input = text_input.upper()
 
         return text_input
-    
+
+
 # Todo calculo general de caesar
-#-----------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------------
+
     @staticmethod
     def addKeyToAsciiValue(ascii_value, key):
         # Shift ASCII value by the key, considering the alphabet boundaries
-        return (ascii_value - CaesarCipher.A_ASCII + key) % CaesarCipher.MAX_KEY + CaesarCipher.A_ASCII
+        return (ascii_value - CaesarCipher.A_ASCII +
+                key) % CaesarCipher.MAX_KEY + CaesarCipher.A_ASCII
 
     @staticmethod
     def performCaesarCipherOperations(letter, key):
@@ -158,14 +160,15 @@ class CaesarCipher:
 
         if CaesarCipher.isLetterAsciiValue(ascii_value):
             # Perform Caesar cipher encryption
-            encrypted_ascii_value = CaesarCipher.addKeyToAsciiValue(ascii_value, key)
+            encrypted_ascii_value = CaesarCipher.addKeyToAsciiValue(
+                ascii_value, key)
         else:
             # Non-alphabetic characters remain unchanged
             encrypted_ascii_value = ascii_value
 
         # Return the char corresponding to the encrypted_ascii_value
         return CaesarCipher.getCharAscii(encrypted_ascii_value)
-    
+
     @staticmethod
     def applyMovementKeyToString(white_text, key):
         # Initialize string_encryption
@@ -173,10 +176,11 @@ class CaesarCipher:
 
         for letter in white_text:
             # Encrypt each letter in the white_text using Caesar cipher
-            string_encryption += CaesarCipher.performCaesarCipherOperations(letter, key)
+            string_encryption += CaesarCipher.performCaesarCipherOperations(
+                letter, key)
 
         return string_encryption
 
 if __name__ == "__main__":
-    #example = CaesarCipher()
+    # example = CaesarCipher()
     None

@@ -5,6 +5,7 @@
 # Importing the CaesarCipher class from the caesar_cipher_classes module
 from caesar_cipher_classes import CaesarCipher
 
+
 class CaesarEncryption(CaesarCipher):
     # Error message for incorrect program launch
     INPUT_ERROR = "Wrong way to launch the program.\n"
@@ -47,7 +48,8 @@ class CaesarEncryption(CaesarCipher):
         """
         Encrypt the text using Caesar cipher algorithm.
         """
-        self.cipher_text = CaesarCipher.applyMovementKeyToString(self.white_text, self.key)
+        self.cipher_text = CaesarCipher.applyMovementKeyToString(
+            self.white_text, self.key)
 
     def showCipherText(self):
         """
@@ -62,6 +64,7 @@ class CaesarEncryption(CaesarCipher):
         CaesarEncryption.getTextToEncrypt(self)
         CaesarEncryption.encrypt(self)
         CaesarEncryption.showCipherText(self)
+
 
 if __name__ == "__main__":
     # Create an instance of CaesarEncryption class and perform encryption
