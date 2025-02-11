@@ -3,146 +3,185 @@
 #include <string.h>
 #include <err.h>
 
-
-// Pasar al ingles
-
 enum {
-    MAX_LINE = 1024,
-    MIN_MINUS = 'a',
-    MIN_UPPER = 'A',
-    MAX_MINUS = 'z',
-    MAX_UPPER = 'Z',
-    DIFF_MINUS_TO_UPPER = 'A' - 'a'
+	MAX_LINE = 1024,
+	MIN_MINUS = 'a',
+	MIN_UPPER = 'A',
+	MAX_MINUS = 'z',
+	MAX_UPPER = 'Z',
+	DIFF_MINUS_TO_UPPER = 'A' - 'a',
+	ALPHABET_SIZE = 'Z' - 'A' + 1
 };
 
-// La estructura del cifrado caesar tendra la clave, el mensaje a cifrar y el mensaje cifrado
-struct Caesar
-{
-    int key;
-    char* message;
-    char* cipher;
+struct Caesar {
+	int key;
+	char *message;
+	char *cipher;
 };
 typedef struct Caesar Caesar;
 
 void
-freeCaesar(Caesar *caesar){
-    if (caesar != NULL) {
-        if (caesar->message != NULL){
-            free(caesar->message);
-        }
-        if (caesar->cipher != NULL){
-            free(caesar->cipher);
-        }
-        free(caesar);
-    }
+freeCaesar(Caesar *caesar)
+{
+	if (caesar != NULL) {
+		if (caesar->message != NULL) {
+			free(caesar->message);
+		}
+		if (caesar->cipher != NULL) {
+			free(caesar->cipher);
+		}
+		free(caesar);
+	}
 }
 
 void
-initCaesar(Caesar *caesar, char *key){
-    caesar->message = NULL;
-    caesar->cipher = NULL;
+initCaesar(Caesar *caesar, char *key)
+{
+	caesar->message = NULL;
+	caesar->cipher = NULL;
 
-    caesar->key = atoi(key);
-    if (caesar->key <= 0){
-        freeCaesar(caesar);
-        errx(EXIT_FAILURE, "atoi failed, key must be a positive integer");
-    }
+	caesar->key = atoi(key);
+	if (caesar->key < 0) {
+		freeCaesar(caesar);
+		errx(EXIT_FAILURE, "atoi failed");
+	}
+	if (caesar->key == 0) {
+		freeCaesar(caesar);
+		errx(EXIT_FAILURE, "key must be a positive integer");
+	}
 }
 
 Caesar *
-createCaesar(char *key){
-    Caesar *caesar = malloc(sizeof(Caesar));
-    if (caesar == NULL){
-        errx(EXIT_FAILURE, "malloc failed");
-    }
-    
-    initCaesar(caesar, key);
+createCaesar(char *key)
+{
+	Caesar *caesar = malloc(sizeof(Caesar));
 
-    return caesar;
+	if (caesar == NULL) {
+		errx(EXIT_FAILURE, "malloc failed");
+	}
+
+	initCaesar(caesar, key);
+
+	return caesar;
 }
-
-
 
 void
 readAllLines(Caesar *caesar)
 {
-    int size = 0;
-    char *buffer = NULL;
-    char line[MAX_LINE];
+	int size = 0;
+	int capacity = MAX_LINE;
+	char *buffer = malloc(capacity);
+	char *new_buffer;
+	int bytesRead;
 
-    while (fgets(line, MAX_LINE, stdin) != NULL) {
-        int line_len = strlen(line);
-        char *new_buffer = realloc(buffer, size + line_len + 1);
-        if (new_buffer == NULL) {
-            free(buffer);
-            freeCaesar(caesar);
-            errx(EXIT_FAILURE, "realloc failed");
-        }
-        buffer = new_buffer;
-        strcpy(buffer + size, line);
-        size += line_len;
-    }
+	if (buffer == NULL) {
+		freeCaesar(caesar);
+		errx(EXIT_FAILURE, "malloc failed");
+	}
 
-    if (buffer == NULL) {
-        freeCaesar(caesar);
-        errx(EXIT_FAILURE, "no message to cipher");
-    }
+	while ((bytesRead = fread(buffer + size, 1, MAX_LINE, stdin)) > 0) {
+		size += bytesRead;
+		if (size + MAX_LINE > capacity) {
+			capacity *= 2;
+			new_buffer = realloc(buffer, capacity);
+			if (new_buffer == NULL) {
+				free(buffer);
+				freeCaesar(caesar);
+				errx(EXIT_FAILURE, "realloc failed");
+			}
+			buffer = new_buffer;
+		}
+	}
 
-    caesar->message = buffer;
+	if (size == 0) {
+		free(buffer);
+		freeCaesar(caesar);
+		errx(EXIT_FAILURE, "no message to cipher");
+	}
+
+	buffer[size] = '\0';
+	caesar->message = buffer;
+}
+
+int
+isLowerCase(char c)
+{
+	return c >= MIN_MINUS && c <= MAX_MINUS;
 }
 
 void
-toUpper(char *message){
-    for (int i = 0; i < strlen(message); i++){
-        if (message[i] >= MIN_MINUS && message[i] <= MAX_MINUS){
-            message[i] += DIFF_MINUS_TO_UPPER;
-        }
-    }
+toUpper(char *message)
+{
+	int i;
+	int len = strlen(message);
+
+	for (i = 0; i < len; i++) {
+		if (isLowerCase(message[i])) {
+			message[i] += DIFF_MINUS_TO_UPPER;
+		}
+	}
 }
 
 void
-getMessage(Caesar *caesar){
-    readAllLines(caesar);
-    if (caesar->message == NULL){
-        freeCaesar(caesar);
-        errx(EXIT_FAILURE, "no message to cipher");
-    }
-    toUpper(caesar->message);
+getMessage(Caesar *caesar)
+{
+	readAllLines(caesar);
+	if (caesar->message == NULL) {
+		freeCaesar(caesar);
+		errx(EXIT_FAILURE, "no message to cipher");
+	}
+	toUpper(caesar->message);
+}
+
+int
+isUpperCase(char c)
+{
+	return c >= MIN_UPPER && c <= MAX_UPPER;
+}
+
+int
+shiftCharacter(char c, int key)
+{
+	return (c - MIN_UPPER + key) % ALPHABET_SIZE + MIN_UPPER;
 }
 
 void
-cipherMessage(Caesar *caesar){
-    caesar->cipher = strdup(caesar->message);
-    if (caesar->cipher == NULL){
-        freeCaesar(caesar);
-        errx(EXIT_FAILURE, "strdup failed");
-    }
-    for (int i = 0; i < strlen(caesar->cipher); i++){
-        if (caesar->cipher[i] >= MIN_UPPER && caesar->cipher[i] <= MAX_UPPER){
-            caesar->cipher[i] = (caesar->cipher[i] - MIN_UPPER + caesar->key) % 26 + MIN_UPPER;
-        }
-    }
+cipherMessage(Caesar *caesar)
+{
+	int i;
+	int len = strlen(caesar->message);
+
+	caesar->cipher = strdup(caesar->message);
+	if (caesar->cipher == NULL) {
+		freeCaesar(caesar);
+		errx(EXIT_FAILURE, "strdup failed");
+	}
+	for (i = 0; i < len; i++) {
+		if (isUpperCase(caesar->cipher[i])) {
+			caesar->cipher[i] =
+			    shiftCharacter(caesar->cipher[i], caesar->key);
+		}
+	}
 }
 
-int main(int argc, char* argv[]){
-    Caesar *caesar;
+int
+main(int argc, char *argv[])
+{
+	Caesar *caesar;
 
-    if (argc != 2){
-        fprintf(stderr, "Usage: %s key\n", argv[0]);
-        exit(EXIT_FAILURE);
-    }
+	if (argc != 2) {
+		fprintf(stderr, "Usage: %s key\n", argv[0]);
+		exit(EXIT_FAILURE);
+	}
 
-    caesar = createCaesar(argv[1]);
+	caesar = createCaesar(argv[1]);
 
-    // Obtener el mensaje a cifrar
-    getMessage(caesar);
+	getMessage(caesar);
 
-    // Cifrar el mensaje
-    cipherMessage(caesar);
+	cipherMessage(caesar);
 
-    // Imprimo el mensaje cifrado
-    printf("%s\n", caesar->cipher);
+	printf("%s", caesar->cipher);
 
-    freeCaesar(caesar);
-    exit(EXIT_SUCCESS);
+	freeCaesar(caesar);
+	exit(EXIT_SUCCESS);
 }

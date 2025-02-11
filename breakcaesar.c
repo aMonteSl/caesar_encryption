@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <err.h>
 #include <math.h>
 
 enum {
@@ -52,54 +53,131 @@ const char *COMMON_TRIGRAMS[] = {
 };
 const int NUM_TRIGRAMS = sizeof(COMMON_TRIGRAMS) / sizeof(COMMON_TRIGRAMS[0]);
 
+typedef struct Candidate Candidate;
 struct Candidate
 {
     int key;
     double distance;
     int bigrams;
     int trigrams;
+    Candidate *next;
 };
-typedef struct Candidate Candidate;
 
+typedef struct Candidates Candidates;
 struct Candidates
 {
-    Candidate candidate;
-    struct Candidates *next;
+    Candidate *top;
 };
-typedef struct Candidates Candidates;
+
 
 void
-readline(char **message)
+readAllLines(char **message)
 {
-    char line[MAX_LINE];
-    if (fgets(line, MAX_LINE, stdin) == NULL){
-        fprintf(stderr, "Error: No se pudo leer la linea\n");
-        exit(EXIT_FAILURE);
+    size_t size = 0;
+    size_t capacity = MAX_LINE * 4; // Leer en bloques más grandes
+    char *buffer = malloc(capacity);
+    if (buffer == NULL) {
+        errx(EXIT_FAILURE, "malloc failed");
     }
-    *message = strdup(line);
-    if (*message == NULL) {
-        fprintf(stderr, "Error: No se pudo duplicar la linea\n");
-        exit(EXIT_FAILURE);
+
+    size_t bytesRead;
+    while ((bytesRead = fread(buffer + size, 1, capacity - size, stdin)) > 0) {
+        size += bytesRead;
+        if (size == capacity) {
+            capacity *= 2; // Aumentar la capacidad en bloques más grandes
+            char *new_buffer = realloc(buffer, capacity);
+            if (new_buffer == NULL) {
+                free(buffer);
+                errx(EXIT_FAILURE, "realloc failed");
+            }
+            buffer = new_buffer;
+        }
     }
+
+    if (size == 0) {
+        free(buffer);
+        errx(EXIT_FAILURE, "no message to process");
+    }
+
+    buffer[size] = '\0'; // Null-terminate the string
+    *message = buffer;
+}
+
+int
+isLowerCase(char c)
+{
+	return c >= MIN_MINUS && c <= MAX_MINUS;
 }
 
 void
-toUpper(char *message){
-    for (int i = 0; i < strlen(message); i++){
-        if (message[i] >= MIN_MINUS && message[i] <= MAX_MINUS){
-            message[i] += DIFF_MINUS_TO_UPPER;
-        }
-    }
+toUpper(char *message)
+{
+	int i;
+	int len = strlen(message);
+
+	for (i = 0; i < len; i++) {
+		if (isLowerCase(message[i])) {
+			message[i] += DIFF_MINUS_TO_UPPER;
+		}
+	}
 }
 
 void
 getMessage(char **message){
-    readline(message);
+    readAllLines(message);
     if (*message == NULL){
         fprintf(stderr, "Error: No se pudo leer el mensaje\n");
         exit(EXIT_FAILURE);
     }
     toUpper(*message);
+}
+
+int
+isNullPointer(void *pointer) {
+    return pointer == NULL;
+}
+
+Candidates *
+newCandidates() {
+    Candidates *candidates;
+
+    candidates = malloc(sizeof(Candidates));
+    if (isNullPointer(candidates)) {
+        fprintf(stderr, "Error: No se pudo crear la lista de candidatos\n");
+        exit(EXIT_FAILURE);
+    }
+    candidates->top = NULL;
+    return candidates;
+}
+
+void
+freeCandidates(Candidates *candidates) {
+
+    if (isNullPointer(candidates)) {
+        return;
+    }
+
+    while (candidates->top != NULL) {
+        Candidate *temp = candidates->top;
+        candidates->top = candidates->top->next;
+        free(temp);
+    }
+    free(candidates);
+}
+
+void
+decryptWithKey(const char *ciphertext, char *plaintext, int key) {
+
+    int i;
+    int len = strlen(ciphertext);
+    for (i = 0; i < len; i++) {
+        if (ciphertext[i] >= MIN_UPPER && ciphertext[i] <= MAX_UPPER) {
+            plaintext[i] = (ciphertext[i] - MIN_UPPER - key + ALPHABET_SIZE) % ALPHABET_SIZE + MIN_UPPER;
+        } else {
+            plaintext[i] = ciphertext[i];
+        }
+    }
+    plaintext[len] = '\0';
 }
 
 void
@@ -140,18 +218,6 @@ double calculateEuclideanDistance(const double *freq1, const double *freq2) {
     return approx;
 }
 
-void
-decryptWithKey(const char *ciphertext, char *plaintext, int key) {
-    for (int i = 0; i < strlen(ciphertext); i++) {
-        if (ciphertext[i] >= MIN_UPPER && ciphertext[i] <= MAX_UPPER) {
-            plaintext[i] = (ciphertext[i] - MIN_UPPER - key + ALPHABET_SIZE) % ALPHABET_SIZE + MIN_UPPER;
-        } else {
-            plaintext[i] = ciphertext[i];
-        }
-    }
-    plaintext[strlen(ciphertext)] = '\0';
-}
-
 int
 countBigrams(const char *text) {
     int count = 0;
@@ -182,84 +248,164 @@ countTrigrams(const char *text) {
     return count;
 }
 
+Candidate *
+createCandidate(int key, double distance, int bigrams, int trigrams, Candidates* candidates) {
+    Candidate *candidate;
+
+    candidate = malloc(sizeof(Candidate));
+    if (isNullPointer(candidate)) {
+        fprintf(stderr, "Error: No se pudo crear el candidato\n");
+        freeCandidates(candidates);
+        exit(EXIT_FAILURE);
+    }
+    candidate->key = key;
+    candidate->distance = distance;
+    candidate->bigrams = bigrams;
+    candidate->trigrams = trigrams;
+    candidate->next = NULL;
+    return candidate;
+}
+
+void addCandidate(Candidate *candidate, Candidates *candidates) {
+    if (isNullPointer(candidates->top)) {
+        candidates->top = candidate;
+    } else {
+        Candidate *current = candidates->top;
+        while (current->next != NULL) {
+            current = current->next;
+        }
+        current->next = candidate;
+    }
+}
+
 void
-startBruteForce(const char *ciphertext, Candidates **candidates) {
+startBruteForce(const char *ciphertext, Candidates *candidates) {
     char plaintext[MAX_LINE];
     double frequencies[ALPHABET_SIZE];
+    double distance;
+    int key;
+    int bigrams;
+    int trigrams;
 
-    for (int key = 1; key <= ALPHABET_SIZE - 1 ; key++) {
+
+    for (key = 1; key <= ALPHABET_SIZE - 1 ; key++) {
         decryptWithKey(ciphertext, plaintext, key);
         calculateFrequencies(plaintext, frequencies);
-        double distance = calculateEuclideanDistance(frequencies, FREQ_ENGLISH);
-        int bigrams = countBigrams(plaintext);
-        int trigrams = countTrigrams(plaintext);
+        distance = calculateEuclideanDistance(frequencies, FREQ_ENGLISH);
+        bigrams = countBigrams(plaintext);
+        trigrams = countTrigrams(plaintext);
 
         // Crear un nuevo candidato
-        Candidates *new_candidate = malloc(sizeof(Candidates));
-        new_candidate->candidate.key = key;
-        new_candidate->candidate.distance = distance;
-        new_candidate->candidate.bigrams = bigrams;
-        new_candidate->candidate.trigrams = trigrams;
-        new_candidate->next = *candidates;
-        *candidates = new_candidate;
-
-        // // Guardar el texto descifrado en un archivo
-        // char filename[20];
-        // sprintf(filename, "key-%d.txt", key);
-        // FILE *file = fopen(filename, "w");
-        // if (file == NULL) {
-        //     fprintf(stderr, "Error: No se pudo crear el archivo %s\n", filename);
-        //     exit(EXIT_FAILURE);
-        // }
-        // fprintf(file, "%s", plaintext);
-        // fclose(file);
+        Candidate *new_candidate = createCandidate(key, distance, bigrams, trigrams, candidates);
+        addCandidate(new_candidate, candidates);
+        
     }
+}
+
+Candidate *copyCandidate(Candidate *original) {
+    Candidate *copy = (Candidate *)malloc(sizeof(Candidate));
+    if (copy != NULL) {
+        copy->key = original->key;
+        copy->distance = original->distance;
+        copy->bigrams = original->bigrams;
+        copy->trigrams = original->trigrams;
+        copy->next = NULL;
+    }
+    return copy;
+}
+
+Candidate *
+getBestDistance(Candidates *candidates) {
+    Candidate *best = candidates->top;
+    for (Candidate *current = candidates->top->next; current != NULL; current = current->next) {
+        if (current->distance < best->distance) {
+            best = current;
+        }
+    }
+    return copyCandidate(best);
+}
+
+Candidate *
+getBestBigrams(Candidates *candidates) {
+    Candidate *best = candidates->top;
+    for (Candidate *current = candidates->top->next; current != NULL; current = current->next) {
+        if (current->bigrams > best->bigrams) {
+            best = current;
+        }
+    }
+    return copyCandidate(best);
+}
+
+Candidate *
+getBestTrigrams(Candidates *candidates) {
+    Candidate *best = candidates->top;
+    for (Candidate *current = candidates->top->next; current != NULL; current = current->next) {
+        if (current->trigrams > best->trigrams) {
+            best = current;
+        }
+    }
+    return copyCandidate(best);
+}
+
+
+Candidates *
+filterCandidates(Candidates* candidates) {
+    Candidate *bestDistance = getBestDistance(candidates);
+    Candidate *bestBigrams = getBestBigrams(candidates);
+    Candidate *bestTrigrams = getBestTrigrams(candidates);
+
+    // Imprimir mejor en cada parametro
+    printf("Best distance: %f, corrrespondiente a la key: %d\n", bestDistance->distance, bestDistance->key);
+    printf("Best bigrams: %d, corrrespondiente a la key: %d\n", bestBigrams->bigrams, bestBigrams->key);
+    printf("Best trigrams: %d, corrrespondiente a la key: %d\n", bestTrigrams->trigrams, bestTrigrams->key);
+
+    for (Candidate *current = candidates->top; current != NULL; current = current->next) {
+        if (current->key == 2){
+            printf("Key: %d, Distance: %f, Bigrams: %d, Trigrams: %d\n", current->key, current->distance, current->bigrams, current->trigrams);
+        }
+    }
+
+    Candidates *filteredCandidates = newCandidates();
+
+    // Añadir solo los mejores candidatos evitando duplicados
+    if (bestDistance != NULL) {
+        addCandidate(bestDistance, filteredCandidates);
+    }
+    if (bestBigrams != NULL && bestBigrams->key != bestDistance->key) {
+        addCandidate(bestBigrams, filteredCandidates);
+    }
+    if (bestTrigrams != NULL && bestTrigrams->key != bestDistance->key && bestTrigrams->key != bestBigrams->key) {
+        addCandidate(bestTrigrams, filteredCandidates);
+    }
+
+    return filteredCandidates;
 }
 
 void
-printCandidates(Candidates *candidates) {
-    Candidates *bestDistance = candidates;
-    Candidates *bestBigrams = candidates;
-    Candidates *bestTrigrams = candidates;
-
-    for (Candidates *current = candidates; current != NULL; current = current->next) {
-        if (current->candidate.distance < bestDistance->candidate.distance) {
-            bestDistance = current;
-        }
-        if (current->candidate.bigrams > bestBigrams->candidate.bigrams) {
-            bestBigrams = current;
-        }
-        if (current->candidate.trigrams > bestTrigrams->candidate.trigrams) {
-            bestTrigrams = current;
-        }
-    }
-
-    if (bestDistance->candidate.key == bestBigrams->candidate.key && bestBigrams->candidate.key == bestTrigrams->candidate.key) {
-        printf("%d: %f, %d, %d\n", bestDistance->candidate.key, bestDistance->candidate.distance, bestDistance->candidate.bigrams, bestDistance->candidate.trigrams);
-    } else if (bestDistance->candidate.key == bestBigrams->candidate.key) {
-        printf("%d: %f, %d, %d\n", bestDistance->candidate.key, bestDistance->candidate.distance, bestDistance->candidate.bigrams, bestDistance->candidate.trigrams);
-        printf("%d: %f, %d, %d\n", bestTrigrams->candidate.key, bestTrigrams->candidate.distance, bestTrigrams->candidate.bigrams, bestTrigrams->candidate.trigrams);
-    } else if (bestDistance->candidate.key == bestTrigrams->candidate.key) {
-        printf("%d: %f, %d, %d\n", bestDistance->candidate.key, bestDistance->candidate.distance, bestDistance->candidate.bigrams, bestDistance->candidate.trigrams);
-        printf("%d: %f, %d, %d\n", bestBigrams->candidate.key, bestBigrams->candidate.distance, bestBigrams->candidate.bigrams, bestBigrams->candidate.trigrams);
-    } else if (bestBigrams->candidate.key == bestTrigrams->candidate.key) {
-        printf("%d: %f, %d, %d\n", bestBigrams->candidate.key, bestBigrams->candidate.distance, bestBigrams->candidate.bigrams, bestBigrams->candidate.trigrams);
-        printf("%d: %f, %d, %d\n", bestDistance->candidate.key, bestDistance->candidate.distance, bestDistance->candidate.bigrams, bestDistance->candidate.trigrams);
-    } else {
-        printf("%d: %f, %d, %d\n", bestDistance->candidate.key, bestDistance->candidate.distance, bestDistance->candidate.bigrams, bestDistance->candidate.trigrams);
-        printf("%d: %f, %d, %d\n", bestBigrams->candidate.key, bestBigrams->candidate.distance, bestBigrams->candidate.bigrams, bestBigrams->candidate.trigrams);
-        printf("%d: %f, %d, %d\n", bestTrigrams->candidate.key, bestTrigrams->candidate.distance, bestTrigrams->candidate.bigrams, bestTrigrams->candidate.trigrams);
+printBestCandidates(Candidates *candidates) {
+    for (Candidate *current = candidates->top; current != NULL; current = current->next) {
+        printf("%d: %f, %d, %d\n", current->key, current->distance, current->bigrams, current->trigrams);
     }
 }
 
-void
-freeCandidates(Candidates *candidates) {
-    while (candidates != NULL) {
-        Candidates *temp = candidates;
-        candidates = candidates->next;
-        free(temp);
+void generateFiles(Candidates *candidates, char *ciphertext) {
+    char plaintext[MAX_LINE];
+    for (Candidate *current = candidates->top; current != NULL; current = current->next) {
+        decryptWithKey(ciphertext, plaintext, current->key);
+        char filename[20];
+        sprintf(filename, "key-%d.txt", current->key);
+        FILE *file = fopen(filename, "w");
+        if (file == NULL) {
+            fprintf(stderr, "Error: No se pudo crear el archivo %s\n", filename);
+            exit(EXIT_FAILURE);
+        }
+        fprintf(file, "%s", plaintext);
+        fclose(file);
     }
+
+
 }
+
 
 int main(int argc, char* argv[]){
     char *ciphertext = NULL;
@@ -267,15 +413,24 @@ int main(int argc, char* argv[]){
     // Obtener de la entrada estandar el mensaje a descifrar
     getMessage(&ciphertext);
 
-    Candidates *candidates = malloc(sizeof(Candidates));
+    
+    // Inicializar la estructura de candidatos
+    Candidates *candidates = newCandidates();
 
     printf("Ciphertext: %s\n", ciphertext);
 
     // Iniciar la fuerza bruta para probar las 25 claves 1-25
-    startBruteForce(ciphertext, &candidates);
+    startBruteForce(ciphertext, candidates);
 
-    // Imprimir los candidatos a solución
-    printCandidates(candidates);
+    // Ahora el stack se debe de quedar solo de 1 a 3 candidatos, los cuales son los mejores en distancia, bigramas y trigramas
+    candidates = filterCandidates(candidates);
+
+    // Imprimir la informacion de cada candidato
+    printBestCandidates(candidates);
+
+    // generar ficheros con los mensajes descifrados siguiendo los nombres key-<key>.txt
+    generateFiles(candidates, ciphertext);
+
 
     // Liberar la memoria de los candidatos
     freeCandidates(candidates);
