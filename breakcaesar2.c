@@ -65,10 +65,10 @@ struct Candidate {
     Candidate *next;
 };
 
-typedef struct Candidates Candidates;
-struct Candidates {
+typedef struct Candidates {
     Candidate *top;
-};
+    Candidate *last; // Nuevo puntero al último candidato añadido
+} Candidates;
 
 /* Lee toda la entrada estándar y la almacena en *message */
 void readAllLines(char **message) {
@@ -137,6 +137,7 @@ Candidates *newCandidates() {
         exit(EXIT_FAILURE);
     }
     candidates->top = NULL;
+    candidates->last = NULL; // Inicializamos el nuevo puntero
     return candidates;
 }
 
@@ -152,9 +153,32 @@ void freeCandidates(Candidates *candidates) {
     free(candidates);
 }
 
+/* Crea un nuevo candidato */
+Candidate *createCandidate(int key, double distance, int bigrams, int trigrams) {
+    Candidate *candidate = malloc(sizeof(Candidate));
+    if (candidate == NULL) {
+        errx(EXIT_FAILURE, "malloc failed");
+    }
+    candidate->key = key;
+    candidate->distance = distance;
+    candidate->bigrams = bigrams;
+    candidate->trigrams = trigrams;
+    candidate->next = NULL;
+    return candidate;
+}
+
+/* Añade un candidato a la lista de candidatos */
+void addCandidate(Candidate *candidate, Candidates *candidates) {
+    if (candidates->top == NULL) {
+        candidates->top = candidate;
+    } else {
+        candidates->last->next = candidate;
+    }
+    candidates->last = candidate;
+}
+
 /* Descifra el texto usando la clave dada */
-void decryptWithKey(const char *ciphertext, char *plaintext, int key) {
-    size_t len = strlen(ciphertext);
+void decryptWithKey(const char *ciphertext, char *plaintext, int key, size_t len) {
     for (size_t i = 0; i < len; i++) {
         if (ciphertext[i] >= MIN_UPPER && ciphertext[i] <= MAX_UPPER) {
             plaintext[i] = (ciphertext[i] - MIN_UPPER - key + ALPHABET_SIZE) % ALPHABET_SIZE + MIN_UPPER;
@@ -165,16 +189,35 @@ void decryptWithKey(const char *ciphertext, char *plaintext, int key) {
     plaintext[len] = '\0';
 }
 
-/* Calcula las frecuencias de cada letra en el texto */
-void calculateFrequencies(const char *text, double *frequencies) {
+/* Calcula las frecuencias de cada letra en el texto y cuenta bigramas y trigramas */
+void calculateMetrics(const char *text, size_t len, double *frequencies, int *bigramCount, int *trigramCount) {
     int count[ALPHABET_SIZE] = {0};
     int total = 0;
-    size_t len = strlen(text);
+    *bigramCount = 0;
+    *trigramCount = 0;
 
     for (size_t i = 0; i < len; i++) {
         if (text[i] >= MIN_UPPER && text[i] <= MAX_UPPER) {
             count[text[i] - MIN_UPPER]++;
             total++;
+        }
+        if (i < len - 1) {
+            char bigram[3] = {text[i], text[i + 1], '\0'};
+            for (int j = 0; j < NUM_BIGRAMS; j++) {
+                if (strcmp(bigram, COMMON_BIGRAMS[j]) == 0) {
+                    (*bigramCount)++;
+                    break;
+                }
+            }
+        }
+        if (i < len - 2) {
+            char trigram[4] = {text[i], text[i + 1], text[i + 2], '\0'};
+            for (int j = 0; j < NUM_TRIGRAMS; j++) {
+                if (strcmp(trigram, COMMON_TRIGRAMS[j]) == 0) {
+                    (*trigramCount)++;
+                    break;
+                }
+            }
         }
     }
 
@@ -190,77 +233,7 @@ double calculateEuclideanDistance(const double *freq1, const double *freq2) {
         double diff = freq1[i] - freq2[i];
         distance += diff * diff;
     }
-    /* Aproximación de sqrt con Newton-Raphson */
-    double x = distance;
-    double approx = distance;
-    if (distance > 0) {
-        for (int i = 0; i < 10; i++) {
-            approx = 0.5 * (approx + x / approx);
-        }
-    } else {
-        approx = 0.0;
-    }
-    return approx;
-}
-
-/* Cuenta la cantidad de bigramas comunes en el texto */
-int countBigrams(const char *text) {
-    int count = 0;
-    size_t len = strlen(text);
-    for (size_t i = 0; i < (len > 0 ? len - 1 : 0); i++) {
-        char bigram[3] = {text[i], text[i + 1], '\0'};
-        for (int j = 0; j < NUM_BIGRAMS; j++) {
-            if (strcmp(bigram, COMMON_BIGRAMS[j]) == 0) {
-                count++;
-                break;
-            }
-        }
-    }
-    return count;
-}
-
-/* Cuenta la cantidad de trigramas comunes en el texto */
-int countTrigrams(const char *text) {
-    int count = 0;
-    size_t len = strlen(text);
-    for (size_t i = 0; i < (len > 1 ? len - 2 : 0); i++) {
-        char trigram[4] = {text[i], text[i + 1], text[i + 2], '\0'};
-        for (int j = 0; j < NUM_TRIGRAMS; j++) {
-            if (strcmp(trigram, COMMON_TRIGRAMS[j]) == 0) {
-                count++;
-                break;
-            }
-        }
-    }
-    return count;
-}
-
-/* Crea un nuevo candidato para la clave dada */
-Candidate *createCandidate(int key, double distance, int bigrams, int trigrams, Candidates *candidates) {
-    Candidate *candidate = malloc(sizeof(Candidate));
-    if (candidate == NULL) {
-        fprintf(stderr, "Error: No se pudo crear el candidato\n");
-        freeCandidates(candidates);
-        exit(EXIT_FAILURE);
-    }
-    candidate->key = key;
-    candidate->distance = distance;
-    candidate->bigrams = bigrams;
-    candidate->trigrams = trigrams;
-    candidate->next = NULL;
-    return candidate;
-}
-
-void addCandidate(Candidate *candidate, Candidates *candidates) {
-    if (candidates->top == NULL) {
-        candidates->top = candidate;
-    } else {
-        Candidate *current = candidates->top;
-        while (current->next != NULL) {
-            current = current->next;
-        }
-        current->next = candidate;
-    }
+    return sqrt(distance);
 }
 
 /* Prueba todas las claves (1 a ALPHABET_SIZE-1) y guarda cada candidato */
@@ -276,12 +249,10 @@ void startBruteForce(const char *ciphertext, Candidates *candidates) {
     int key, bigrams, trigrams;
 
     for (key = 1; key <= ALPHABET_SIZE - 1; key++) {
-        decryptWithKey(ciphertext, plaintext, key);
-        calculateFrequencies(plaintext, frequencies);
+        decryptWithKey(ciphertext, plaintext, key, len);
+        calculateMetrics(plaintext, len, frequencies, &bigrams, &trigrams);
         distance = calculateEuclideanDistance(frequencies, FREQ_ENGLISH);
-        bigrams = countBigrams(plaintext);
-        trigrams = countTrigrams(plaintext);
-        Candidate *new_candidate = createCandidate(key, distance, bigrams, trigrams, candidates);
+        Candidate *new_candidate = createCandidate(key, distance, bigrams, trigrams);
         addCandidate(new_candidate, candidates);
     }
     free(plaintext);
@@ -384,7 +355,7 @@ void generateFiles(Candidates *candidates, const char *ciphertext) {
         errx(EXIT_FAILURE, "malloc failed");
 
     for (Candidate *current = candidates->top; current != NULL; current = current->next) {
-        decryptWithKey(ciphertext, plaintext, current->key);
+        decryptWithKey(ciphertext, plaintext, current->key, len);
         char filename[20];
         sprintf(filename, "key-%d.txt", current->key);
         FILE *file = fopen(filename, "w");
@@ -404,7 +375,7 @@ int main(int argc, char *argv[]) {
 
     /* Obtener el mensaje a descifrar desde la entrada estándar */
     getMessage(&ciphertext);
-    printf("Ciphertext: %s\n", ciphertext);
+    // printf("Ciphertext: %s\n", ciphertext);
 
     /* Inicializar candidatos y ejecutar la fuerza bruta */
     Candidates *candidates = newCandidates();
