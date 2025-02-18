@@ -71,35 +71,33 @@ typedef struct Candidates {
 } Candidates;
 
 /* Lee toda la entrada estándar y la almacena en *message */
-void readAllLines(char **message) {
-    size_t size = 0;
-    size_t capacity = MAX_LINE * 4; // bloques más grandes
-    char *buffer = malloc(capacity);
-    if (buffer == NULL) {
-        errx(EXIT_FAILURE, "malloc failed");
-    }
+void readAllLines(char **dest) {
+    int total_size;
+    int len;
+    char buffer[MAX_LINE];
+    char *message;
+    char *new_message;
 
-    size_t bytesRead;
-    while ((bytesRead = fread(buffer + size, 1, capacity - size, stdin)) > 0) {
-        size += bytesRead;
-        if (size == capacity) {
-            capacity *= 2;
-            char *new_buffer = realloc(buffer, capacity);
-            if (new_buffer == NULL) {
-                free(buffer);
-                errx(EXIT_FAILURE, "realloc failed");
-            }
-            buffer = new_buffer;
+    total_size = 0;
+    message = NULL;
+
+    while (fgets(buffer, MAX_LINE, stdin) != NULL) {
+        len = strlen(buffer);
+        new_message = realloc(message, total_size + len + 1);
+        if (new_message == NULL) {
+            free(message);
+            errx(EXIT_FAILURE, "realloc failed");
         }
+        message = new_message;
+        strcpy(message + total_size, buffer);
+        total_size += len;
     }
 
-    if (size == 0) {
-        free(buffer);
-        errx(EXIT_FAILURE, "no message to process");
+    if (message == NULL) {
+        errx(EXIT_FAILURE, "no message to cipher");
     }
 
-    buffer[size] = '\0'; // Null-terminate
-    *message = buffer;
+    *dest = message;
 }
 
 int isLowerCase(char c) {

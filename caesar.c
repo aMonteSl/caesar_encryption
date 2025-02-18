@@ -65,43 +65,38 @@ createCaesar(char *key)
 	return caesar;
 }
 
-void
-readAllLines(Caesar *caesar)
-{
-	int size = 0;
-	int capacity = MAX_LINE;
-	char *buffer = malloc(capacity);
-	char *new_buffer;
-	int bytesRead;
+void readAllLines(Caesar *caesar) {
+    int total_size;
+    int len;
+    char buffer[MAX_LINE];
+    char *message;
+    char *new_message;
 
-	if (buffer == NULL) {
-		freeCaesar(caesar);
-		errx(EXIT_FAILURE, "malloc failed");
-	}
+    total_size = 0;
+    message = NULL;
 
-	while ((bytesRead = fread(buffer + size, 1, MAX_LINE, stdin)) > 0) {
-		size += bytesRead;
-		if (size + MAX_LINE > capacity) {
-			capacity *= 2;
-			new_buffer = realloc(buffer, capacity);
-			if (new_buffer == NULL) {
-				free(buffer);
-				freeCaesar(caesar);
-				errx(EXIT_FAILURE, "realloc failed");
-			}
-			buffer = new_buffer;
-		}
-	}
+    while (fgets(buffer, MAX_LINE, stdin) != NULL) {
+        len = strlen(buffer);
+        new_message = realloc(message, total_size + len + 1);
+        if (new_message == NULL) {
+            free(message);
+            freeCaesar(caesar);
+            errx(EXIT_FAILURE, "realloc failed");
+        }
+        message = new_message;
+        strcpy(message + total_size, buffer);
+        total_size += len;
+    }
 
-	if (size == 0) {
-		free(buffer);
-		freeCaesar(caesar);
-		errx(EXIT_FAILURE, "no message to cipher");
-	}
+    if (message == NULL) {
+        freeCaesar(caesar);
+        errx(EXIT_FAILURE, "no message to cipher");
+    }
 
-	buffer[size] = '\0';
-	caesar->message = buffer;
+    caesar->message = message;
 }
+
+
 
 int
 isLowerCase(char c)
